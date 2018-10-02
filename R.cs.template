@@ -1,0 +1,68 @@
+// ----- AUTO GENERATED CODE - ANY MODIFICATION WILL BE OVERRIDEN ----- //
+// ----- GENERATED ON ${timeStamp} ----- //
+using System;
+
+namespace Harmony
+{
+    public static class R
+    {
+        public static class E
+        {
+        {{range $constClass := .}}
+            public enum {{$constClass.Name}}
+            {
+            {{range $constClass.Members}}
+                {{if .IsValid}}
+                {{.Name}} = {{.Id}}, //In "{{.Path}}".
+                {{else}}
+                //{{$constClass.Name}} "{{.Name}}" has invalid name. Non-alphanumerical characters are prohibited. In "{{.Path}}".
+                {{end}}
+            {{end}}
+            }
+        {{end}}
+        }
+        public static class S
+        {
+        {{range $constClass := .}}
+            public static class {{$constClass.Name}}
+            {
+            {{range $constClass.Members}}
+                {{if .IsValid}}
+                public const string {{.Name}} = "{{.Name}}"; //In "{{.Path}}".
+                {{else}}
+                //{{$constClass.Name}} "{{.Name}}" has invalid name. Non-alphanumerical characters are prohibited. In "{{.Path}}".
+                {{end}}
+            {{end}}
+
+                public static string ToString(E.{{$constClass.Name}} value)
+                {
+                    switch (value)
+                    {
+                    {{range $constClass.Members}}
+                        {{if .IsValid}}
+                        case E.{{$constClass.Name}}.{{.Name}}:
+                            return {{.Name}};
+                        {{end}}
+                    {{end}}
+                    }
+                    return null;
+                }
+
+                public static E.{{$constClass.Name}} ToEnum(string value)
+                {
+                    switch (value)
+                    {
+                    {{range $constClass.Members}}
+                        {{if .IsValid}}
+                        case {{.Name}}:
+                            return E.{{$constClass.Name}}.{{.Name}};
+                        {{end}}
+                    {{end}}
+                    }
+                    throw new ArgumentException("Unable to convert " + value + " to R.E.{{$constClass.Name}}.");
+                }
+            }
+        {{end}}
+        }
+    }
+}
