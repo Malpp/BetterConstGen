@@ -24,7 +24,7 @@ type ConstClass struct {
 }
 
 type ConstMember struct {
-	Id      uint32
+	Id      uint16
 	Name    string
 	Path    string
 	IsValid bool
@@ -85,7 +85,7 @@ func main() {
 func addGameObjectsToConstMembers() {
 	fmt.Println("	GameObjects...")
 
-	var constMembers []ConstMember
+	var constMembers = make(map[string]string)
 	itemsToSearch := append(sceneItems, prefabItems...)
 
 	for _, controllerItem := range itemsToSearch {
@@ -119,12 +119,17 @@ func addGameObjectsToConstMembers() {
 			if err != nil {
 				log.Fatalf("error: %v", err)
 			}
-			constMembers = append(constMembers, createConstMember(gameObjectYaml.GameObject.MName, controllerItem.Path))
+			constMembers[gameObjectYaml.GameObject.MName] = controllerItem.Path
 		}
-
 	}
-	constMembers = append(constMembers, createConstMember("None", ""))
-	constClasses = append(constClasses, ConstClass{Name: "GameObject", Members: constMembers})
+	constMembers["None"] = ""
+
+	var constMembersData []ConstMember
+
+	for key, value := range constMembers {
+		constMembersData = append(constMembersData, createConstMember(key, value))
+	}
+	constClasses = append(constClasses, ConstClass{Name: "GameObject", Members: constMembersData})
 }
 
 func addAnimationParametersToConstMembers() {
@@ -149,7 +154,7 @@ func addAnimationParametersToConstMembers() {
 		}
 	}
 	constMembers = append(constMembers, createConstMember("None", ""))
-	constClasses = append(constClasses, ConstClass{Name: "AnimationParameters", Members: constMembers})
+	constClasses = append(constClasses, ConstClass{Name: "AnimatorParameter", Members: constMembers})
 }
 
 func prepareSceneAndPrefabItems() {
@@ -230,12 +235,12 @@ func addTagConstMembers(tags []string, tagManagerPath string) {
 	tags = append(tags, "EditorOnly")
 	tags = append(tags, "Player")
 	tags = append(tags, "MainCamera")
-	addConstClassFromMembers("Tags", tags, tagManagerPath)
+	addConstClassFromMembers("Tag", tags, tagManagerPath)
 }
 
 func addLayerConstMembers(layers []string, tagManagerPath string) {
 	layers = append(layers, "None")
-	addConstClassFromMembers("Layers", layers, tagManagerPath)
+	addConstClassFromMembers("Layer", layers, tagManagerPath)
 }
 
 func addConstClassFromMembers(name string, members []string, path string) {
@@ -256,7 +261,7 @@ func createMultiConstMember(names []string, path string) []ConstMember {
 func generateTemplate() {
 	fmt.Println("\nGenerating C#")
 
-	t, err := template.ParseFiles("R.cs.template")
+	t, err := template.New("cSharp").Parse(cSharpTemplate)
 	if err != nil {
 		log.Print(err)
 		return
@@ -294,10 +299,10 @@ Where :
 	}
 }
 
-func generateHashFromString(name string) uint32 {
+func generateHashFromString(name string) uint16 {
 	h := fnv.New32a()
 	h.Write([]byte(name))
-	return h.Sum32()
+	return uint16(h.Sum32())
 }
 
 func createConstMember(name string, path string) ConstMember {
@@ -315,3 +320,72 @@ func removeNilFrom(s []string) []string {
 	}
 	return r
 }
+
+var cSharpTemplate string = `// ----- AUTO GENERATED CODE - ANY MODIFICATION WILL BE OVERRIDEN ----- //
+// ----- GENERATED ON ${timeStamp} ----- //
+using System;
+
+namespace Harmony
+{
+    public static class R
+    {
+        public static class E
+        {
+        {{range $constClass := .}}
+            public enum {{$constClass.Name}}
+            {
+            {{range $constClass.Members}}
+                {{if .IsValid}}
+                {{.Name}} = {{.Id}}, //In "{{.Path}}".
+                {{else}}
+                //{{$constClass.Name}} "{{.Name}}" has invalid name. Non-alphanumerical characters are prohibited. In "{{.Path}}".
+                {{end}}
+            {{end}}
+            }
+        {{end}}
+        }
+        public static class S
+        {
+        {{range $constClass := .}}
+            public static class {{$constClass.Name}}
+            {
+            {{range $constClass.Members}}
+                {{if .IsValid}}
+                public const string {{.Name}} = "{{.Name}}"; //In "{{.Path}}".
+                {{else}}
+                //{{$constClass.Name}} "{{.Name}}" has invalid name. Non-alphanumerical characters are prohibited. In "{{.Path}}".
+                {{end}}
+            {{end}}
+
+                public static string ToString(E.{{$constClass.Name}} value)
+                {
+                    switch (value)
+                    {
+                    {{range $constClass.Members}}
+                        {{if .IsValid}}
+                        case E.{{$constClass.Name}}.{{.Name}}:
+                            return {{.Name}};
+                        {{end}}
+                    {{end}}
+                    }
+                    return null;
+                }
+
+                public static E.{{$constClass.Name}} ToEnum(string value)
+                {
+                    switch (value)
+                    {
+                    {{range $constClass.Members}}
+                        {{if .IsValid}}
+                        case {{.Name}}:
+                            return E.{{$constClass.Name}}.{{.Name}};
+                        {{end}}
+                    {{end}}
+                    }
+                    throw new ArgumentException("Unable to convert " + value + " to R.E.{{$constClass.Name}}.");
+                }
+            }
+        {{end}}
+        }
+    }
+}`
