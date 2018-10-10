@@ -2,3 +2,5 @@
 Generated/
 
 *.exe
+BetterConstGen
+*.prof

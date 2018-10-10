@@ -4,14 +4,12 @@ import (
 	"bytes"
 	"fmt"
 	"gopkg.in/yaml.v2"
-	"hash/fnv"
 	"html/template"
 	"io/ioutil"
 	"log"
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
 )
 
@@ -21,13 +19,6 @@ var outputDirectoryPath string
 type ConstClass struct {
 	Name    string
 	Members []ConstMember
-}
-
-type ConstMember struct {
-	Id      uint16
-	Name    string
-	Path    string
-	IsValid bool
 }
 
 type TagManagerAssetYaml struct {
@@ -60,13 +51,10 @@ var constClasses []ConstClass
 var sceneItems []FolderItem
 var prefabItems []FolderItem
 var animationItems []FolderItem
+var animItems []FolderItem
 
 func main() {
 	validateArgs()
-
-	projectDirectoryPath = os.Args[1]
-	outputDirectoryPath = os.Args[2]
-
 	generateOutputDirectory()
 
 	fmt.Println("Reading files")
@@ -76,6 +64,7 @@ func main() {
 
 	addSceneToConstMembers()
 	addPrefabToConstMembers()
+	addAnimsToConstMembers()
 	addAnimationParametersToConstMembers()
 	addGameObjectsToConstMembers()
 
@@ -176,6 +165,10 @@ func prepareSceneAndPrefabItems() {
 			if strings.HasSuffix(info.Name(), ".controller") {
 				animationItems = append(animationItems, FolderItem{Name: strings.Split(info.Name(), ".")[0], Path: path})
 			}
+
+			if strings.HasSuffix(info.Name(), ".anim") {
+				animItems = append(animItems, FolderItem{Name: strings.Split(info.Name(), ".")[0], Path: path})
+			}
 		}
 
 		return nil
@@ -195,6 +188,11 @@ func addPrefabToConstMembers() {
 	fmt.Println("	Prefabs...")
 	prefabItems = append(prefabItems, FolderItem{Name: "None", Path: ""})
 	constClasses = append(constClasses, ConstClass{Name: "Prefab", Members: folderItemsToConstMembers(prefabItems)})
+}
+
+func addAnimsToConstMembers() {
+	fmt.Println("	Animations...")
+	constClasses = append(constClasses, ConstClass{Name: "Animations", Members: folderItemsToConstMembers(animItems)})
 }
 
 func folderItemsToConstMembers(items []FolderItem) []ConstMember {
@@ -297,18 +295,9 @@ Where :
 	inputDir                Path to the Unity project directory (not the Asset folder).
 	outputDir               Path to the output directory for generated code (in the Asset folder).`)
 	}
-}
 
-func generateHashFromString(name string) uint16 {
-	h := fnv.New32a()
-	h.Write([]byte(name))
-	return uint16(h.Sum32())
-}
-
-func createConstMember(name string, path string) ConstMember {
-	isAlphaNumerical, _ := regexp.MatchString("^[a-zA-Z0-9]+$", name)
-	isValid := isAlphaNumerical && name != "GameObject" && name != "Scene" && name != "Prefab" && name != "Layer" && name != "Tag" && name != "AnimatorParameter"
-	return ConstMember{Name: name, Path: path, Id: generateHashFromString(name), IsValid: isValid}
+	projectDirectoryPath = os.Args[1]
+	outputDirectoryPath = os.Args[2]
 }
 
 func removeNilFrom(s []string) []string {
@@ -321,7 +310,7 @@ func removeNilFrom(s []string) []string {
 	return r
 }
 
-var cSharpTemplate string = `// ----- AUTO GENERATED CODE - ANY MODIFICATION WILL BE OVERRIDEN ----- //
+var cSharpTemplate = `// ----- AUTO GENERATED CODE - ANY MODIFICATION WILL BE OVERRIDEN ----- //
 // ----- GENERATED ON ${timeStamp} ----- //
 using System;
 
@@ -351,7 +340,7 @@ namespace Harmony
             {
             {{range $constClass.Members}}
                 {{if .IsValid}}
-                public const string {{.Name}} = "{{.Name}}"; //In "{{.Path}}".
+                public const string {{.Name}} = "{{.Value}}"; //In "{{.Path}}".
                 {{else}}
                 //{{$constClass.Name}} "{{.Name}}" has invalid name. Non-alphanumerical characters are prohibited. In "{{.Path}}".
                 {{end}}
