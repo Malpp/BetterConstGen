@@ -340,7 +340,7 @@ namespace Harmony
             {
             {{range $constClass.Members}}
                 {{if .IsValid}}
-                public const string {{.Name}} = "{{.Value}}"; //In "{{.Path}}".
+                public const string {{.Name}} = "{{.Name}}"; //In "{{.Path}}".
                 {{else}}
                 //{{$constClass.Name}} "{{.Name}}" has invalid name. Non-alphanumerical characters are prohibited. In "{{.Path}}".
                 {{end}}

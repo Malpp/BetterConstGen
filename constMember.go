@@ -5,14 +5,12 @@ import (
 	"encoding/hex"
 	"math/big"
 	"regexp"
-	"strings"
 	"unicode"
 )
 
 type ConstMember struct {
 	Id      uint64
 	Name    string
-	Value   string
 	Path    string
 	IsValid bool
 }
@@ -31,9 +29,7 @@ func generateHashFromString(name string) uint64 {
 }
 
 func createConstMember(name string, path string) ConstMember {
-	valS := name
-	name = strings.Replace(name, "_", "", -1)
-	isAlphaNumerical, _ := regexp.MatchString("^[a-zA-Z0-9]+$", name)
+	isAlphaNumerical, _ := regexp.MatchString("^[a-zA-Z_][a-zA-Z_0-9]+$", name)
 	isValid := isAlphaNumerical && name != "GameObject" && name != "Scene" && name != "Prefab" && name != "Layer" && name != "Tag" && name != "AnimatorParameter" && !unicode.IsDigit(rune(name[0]))
-	return ConstMember{Name: name, Path: path, Id: generateHashFromString(name), IsValid: isValid, Value: valS}
+	return ConstMember{Name: name, Path: path, Id: generateHashFromString(name), IsValid: isValid}
 }
